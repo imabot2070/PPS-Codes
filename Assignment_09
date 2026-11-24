@@ -1,0 +1,124 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct RobotRecord {
+    int robot_id;
+    float depth;
+    float pressure;
+    float temperature;
+    float battery;
+    char defect[50];
+};
+
+void addRecord(const char *filename) {
+    FILE *fp = fopen(filename, "ab"); 
+    if (fp == NULL) {
+        printf("Error opening file!\n");
+        return;
+    }
+
+    struct RobotRecord rec;
+    printf("\n--- Enter New Robot Telemetry Data ---\n");
+    printf("Robot ID: ");
+    scanf("%d", &rec.robot_id);
+    printf("Depth (m): ");
+    scanf("%f", &rec.depth);
+    printf("Pressure (MPa): ");
+    scanf("%f", &rec.pressure);
+    printf("Temperature (C): ");
+    scanf("%f", &rec.temperature);
+    printf("Battery (%%): ");
+    scanf("%f", &rec.battery);
+    
+    getchar(); 
+    printf("Structural Defect (enter 'None' if no defects): ");
+    fgets(rec.defect, sizeof(rec.defect), stdin);
+    rec.defect[strcspn(rec.defect, "\n")] = 0;
+
+    fwrite(&rec, sizeof(struct RobotRecord), 1, fp);
+    fclose(fp);
+    printf("Record saved successfully!\n");
+}
+
+void generateReport(const char *filename) {
+    FILE *fp = fopen(filename, "rb"); 
+    if (fp == NULL) {
+        printf("No historical records found.\n");
+        return;
+    }
+
+    struct RobotRecord rec;
+    int total_records = 0;
+    int unsafe_count = 0;
+    int defect_count = 0;
+
+    printf("\n====================================================================\n");
+    printf("                 UNDERWATER ROBOT INSPECTION REPORT                 \n");
+    printf("====================================================================\n");
+    printf("%-6s %-8s %-10s %-8s %-9s %-15s %-8s\n", 
+           "ID", "Depth", "Pressure", "Temp", "Battery", "Defect", "Status");
+    printf("--------------------------------------------------------------------\n");
+
+    while (fread(&rec, sizeof(struct RobotRecord), 1, fp) == 1) {
+        total_records++;
+        int is_unsafe = 0;
+
+
+        if (rec.depth > 300.0) is_unsafe = 1;
+        if (rec.pressure > 30.0) is_unsafe = 1;
+        if (rec.temperature > 35.0) is_unsafe = 1;
+        if (rec.battery < 20.0) is_unsafe = 1;
+        
+        if (strcasecmp(rec.defect, "None") != 0 && strlen(rec.defect) > 0) {
+            is_unsafe = 1;
+            defect_count++;
+        }
+
+        if (is_unsafe) {
+            unsafe_count++;
+        }
+
+        printf("%-6d %-8.1f %-10.1f %-8.1f %-9.1f %-15s %-8s\n",
+               rec.robot_id, rec.depth, rec.pressure, rec.temperature,
+               rec.battery, rec.defect, is_unsafe ? "UNSAFE" : "SAFE");
+    }
+
+    fclose(fp);
+
+    printf("====================================================================\n");
+    printf("Total Records Analyzed : %d\n", total_records);
+    printf("Safe Records           : %d\n", total_records - unsafe_count);
+    printf("Unsafe Records         : %d\n", unsafe_count);
+    printf("Records with Defects   : %d\n", defect_count);
+    printf("====================================================================\n");
+}
+
+int main() {
+    const char *filename = "robot_data.dat";
+    int choice;
+
+    do {
+        printf("\n1. Add New Robot Record\n");
+        printf("2. Generate Inspection Report\n");
+        printf("3. Exit\n");
+        printf("Enter choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                addRecord(filename);
+                break;
+            case 2:
+                generateReport(filename);
+                break;
+            case 3:
+                printf("Exiting...\n");
+                break;
+            default:
+                printf("Invalid choice. Try again.\n");
+        }
+    } while (choice != 3);
+
+    return 0;
+}
